@@ -8,8 +8,8 @@ and **logs** that are automatically correlated by `trace_id` / `span_id`, export
 **OTLP/gRPC** (SigNoz, Grafana, Jaeger, any OTLP collector) or to **Azure Application
 Insights** — switchable with a single environment variable, no code changes.
 
-[![PyPI](https://img.shields.io/pypi/v/otelio.svg)](https://pypi.org/project/otelio/)
-[![Python](https://img.shields.io/pypi/pyversions/otelio.svg)](https://pypi.org/project/otelio/)
+[![PyPI](https://img.shields.io/pypi/v/python-otelio.svg)](https://pypi.org/project/python-otelio/)
+[![Python](https://img.shields.io/pypi/pyversions/python-otelio.svg)](https://pypi.org/project/python-otelio/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ---
@@ -29,11 +29,12 @@ Insights** — switchable with a single environment variable, no code changes.
 ## Install
 
 ```bash
-pip install otelio                # core + OTLP/gRPC exporter
-pip install "otelio[azure]"       # also the Azure Application Insights exporter
+pip install python-otelio                # core + OTLP/gRPC exporter
+pip install "python-otelio[azure]"       # also the Azure Application Insights exporter
 ```
 
-Requires Python 3.10+.
+Requires Python 3.10+. The distribution is named **`python-otelio`** on PyPI but imports
+as **`otelio`** (`from otelio import ...`).
 
 ## Quick start
 

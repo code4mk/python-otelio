@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "otelio"
+name = "python-otelio"
 version = "0.0.1"
 description = "Otelio: OpenTelemetry + Loguru toolkit for Python services"
 readme = "README.md"
