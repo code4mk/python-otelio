@@ -40,7 +40,7 @@ src/otelio/
 
 | Symbol | Purpose |
 | --- | --- |
-| `init_otelio(service_name, service_version, environment=None)` | Bootstrap tracing + logging once at startup. Returns the resolved `Settings`. |
+| `init_otelio(service_name, service_version, environment=None, resource_attributes=None)` | Bootstrap tracing + logging once at startup. `resource_attributes` adds extra resource-level keys to every span + log. Returns the resolved `Settings`. |
 | `otel_span(name, attributes=None, kind=SpanKind.INTERNAL, context=None)` | Context manager that starts a span, records exceptions, and re-raises. |
 | `otel_current_span()` | The span active in the current context. |
 | `otel_get_tracer()` | The shared `otelio` tracer. |

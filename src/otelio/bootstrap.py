@@ -1,6 +1,8 @@
 """One-call wiring: providers, processors, the Loguru bridge, and shutdown."""
 
 import atexit
+from collections.abc import Mapping
+from typing import Any
 
 from loguru import logger
 from opentelemetry import trace
@@ -20,9 +22,15 @@ def init_otelio(
     service_name: str,
     service_version: str,
     environment: str | None = None,
+    resource_attributes: Mapping[str, Any] | None = None,
 ) -> Settings:
     """
     Initialise tracing + logging once at process start; returns the resolved settings.
+
+    Pass ``resource_attributes`` to stamp extra resource-level attributes (e.g.
+    ``service.namespace``, ``service.instance.id``, ``cloud.region``) onto every span
+    and log this process emits. The canonical ``service.name`` / ``service.version`` /
+    ``deployment.environment`` keys always win, so they cannot be clobbered here.
 
     Registers an :mod:`atexit` hook that flushes Loguru and shuts the providers down
     so buffered spans/logs are exported on a clean exit.
@@ -30,6 +38,7 @@ def init_otelio(
     s = load_settings(service_name, service_version, environment)
 
     resource = Resource.create({
+        **(resource_attributes or {}),
         "service.name": s.service_name,
         "service.version": s.service_version,
         "deployment.environment": s.environment,

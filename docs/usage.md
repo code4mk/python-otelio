@@ -57,8 +57,18 @@ init_otelio(
     service_name="my-service",
     service_version=version("my-service"),
     # environment="production",  # optional; defaults to $DEPLOYMENT_ENVIRONMENT or "local"
+    # resource_attributes={      # optional; stamped on every span + log this process emits
+    #     "service.namespace": "nexus-re",
+    #     "service.instance.id": socket.gethostname(),
+    #     "cloud.region": "westeurope",
+    # },
 )
 ```
+
+> `resource_attributes` are **resource-level** — they describe this process and ride on
+> every span and log, unlike `otel_set_attributes` (one span) or baggage (cross-service).
+> The canonical `service.name` / `service.version` / `deployment.environment` keys always
+> win, so you can't accidentally clobber them via this mapping.
 
 ### With FastAPI (lifespan)
 
