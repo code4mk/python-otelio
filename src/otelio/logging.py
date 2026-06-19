@@ -65,6 +65,13 @@ def setup_loguru(
             exc_info=r["exception"],  # loguru's (type, value, tb) namedtuple
             func=r["function"],
         )
+        # Forward Loguru's structured fields (logger.info(msg, k=v) / logger.bind)
+        # onto the std record so OTel's LoggingHandler emits them as log
+        # attributes. trace_id/span_id are skipped: they're correlated via the
+        # span context attached below, not as duplicate attributes.
+        for key, value in r["extra"].items():
+            if key not in ("trace_id", "span_id"):
+                setattr(std, key, value)
         # enqueue=True runs this on Loguru's writer thread, where the OTel
         # contextvar is empty — so re-attach the span context the patcher
         # captured (on the originating thread) before emitting, otherwise the
