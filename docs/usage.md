@@ -2,8 +2,8 @@
 
 End-to-end guide for using `otelio` in a Python service: how to **bootstrap**, create
 **spans**, write **logs** that are correlated to those spans, and use the **helpers** to
-propagate context and annotate spans. Examples are shown with **FastAPI**, since that is
-what our services run on, but nothing in `otelio` is FastAPI-specific.
+propagate context and annotate spans. Examples use **FastAPI** for concreteness, but
+nothing in `otelio` is FastAPI-specific.
 
 > Public API reference and configuration live in the [README](../README.md). This doc is
 > the "how do I actually use it" companion.
@@ -20,7 +20,7 @@ what our services run on, but nothing in `otelio` is FastAPI-specific.
 6. [Helpers — context propagation](#6-helpers--context-propagation)
 7. [Helpers — baggage (cross-service values)](#7-helpers--baggage-cross-service-values)
 8. [Full FastAPI example](#8-full-fastapi-example)
-9. [The MCP → APIM → governance → backend flow](#9-the-mcp--apim--governance--backend-flow)
+9. [Multi-service trace propagation](#9-multi-service-trace-propagation)
 10. [Patterns & gotchas](#10-patterns--gotchas)
 
 ---
@@ -35,8 +35,9 @@ what our services run on, but nothing in `otelio` is FastAPI-specific.
 | **Logs** | Normal Loguru logs, automatically stamped with the active `trace_id` / `span_id` and exported to the backend. | `loguru.logger` |
 | **Helpers** | Put data on spans, carry trace context + baggage across HTTP calls. | `otel_set_attributes`, `otel_add_event`, `otel_inject_headers`, `otel_context_from_headers`, `otel_set_baggage`, `otel_get_baggage`, `otel_get_all_baggage` |
 
-Everything flows to **SigNoz** locally or **Azure Application Insights** in dev/prod,
-selected purely by the `OTELIO_TARGET` env var — your code never changes.
+Everything flows to your **OTLP collector** (SigNoz, Grafana, Jaeger, …) or **Azure
+Application Insights**, selected purely by the `OTELIO_TARGET` env var — your code never
+changes.
 
 ---
 
@@ -58,7 +59,7 @@ init_otelio(
     service_version=version("my-service"),
     # environment="production",  # optional; defaults to $DEPLOYMENT_ENVIRONMENT or "local"
     # resource_attributes={      # optional; stamped on every span + log this process emits
-    #     "service.namespace": "nexus-re",
+    #     "service.namespace": "payments",
     #     "service.instance.id": socket.gethostname(),
     #     "cloud.region": "westeurope",
     # },
@@ -177,7 +178,7 @@ trace (client/server pairing, service maps):
 ```python
 from opentelemetry.trace import SpanKind
 
-with otel_span("apim.request", kind=SpanKind.CLIENT):     # we are calling out
+with otel_span("downstream.request", kind=SpanKind.CLIENT):  # we are calling out
     ...
 
 with otel_span("handle.request", kind=SpanKind.SERVER):   # we are serving a request
@@ -321,8 +322,8 @@ service hop (it rides the W3C `baggage` header). Use it for **cross-cutting iden
 every service should know — `tenant.id`, `request.id`, `user.id`.
 
 > **Baggage vs span attributes:** a span attribute is local to one service's span.
-> Baggage propagates to **all** downstream services. Set a tenant id once at the MCP edge
-> and APIM / governance / backend can all read it.
+> Baggage propagates to **all** downstream services. Set a tenant id once at the edge of
+> your system and every downstream service can read it.
 
 Propagation is already wired: `otel_inject_headers` / `otel_context_from_headers` carry
 baggage automatically (the global propagator is a composite of `tracecontext` + `baggage`).
@@ -379,8 +380,8 @@ otel_set_attributes(otel_get_all_baggage())
 
 ### ⚠️ Cautions
 
-- Baggage is sent **in plaintext** to every downstream hop (including APIM). **Never put
-  secrets, tokens, or PII in it.**
+- Baggage is sent **in plaintext** to every downstream hop. **Never put secrets, tokens,
+  or PII in it.**
 - Every entry is **header weight on every outbound call** — keep keys/values small and few.
 
 ---
@@ -435,7 +436,7 @@ async def tracing_middleware(request: Request, call_next):
             "http.method": request.method,
             "http.route": request.url.path,
         })
-        # cross-cutting IDs that should travel to APIM -> governance -> backend
+        # cross-cutting IDs that should travel to every downstream hop
         token = otel_set_baggage({
             "request.id": request.headers.get("x-request-id", "-"),
             "tenant.id": request.headers.get("x-tenant-id", "-"),
@@ -461,12 +462,12 @@ async def invoke_tool(tool_name: str, request: Request):
         # ... validate ...
         otel_add_event("validation.ok")
 
-    # 3. Call APIM downstream, carrying the trace context forward.
-    with otel_span("call_apim", kind=SpanKind.CLIENT):
+    # 3. Call a downstream service, carrying the trace context forward.
+    with otel_span("call_downstream", kind=SpanKind.CLIENT):
         headers = otel_inject_headers({"Authorization": request.headers.get("authorization", "")})
         async with httpx.AsyncClient() as client:
             resp = await client.post(
-                "https://apim.example.com/governance",
+                "https://downstream.example.com/process",
                 headers=headers,
                 json=payload,
             )
@@ -481,34 +482,35 @@ async def invoke_tool(tool_name: str, request: Request):
     return resp.json()
 ```
 
-What you get in SigNoz / App Insights for one request:
+What you get in your backend for one request:
 
 ```
 SERVER  POST /tools/search                 (root span — continued from caller if traceparent present)
 ├─ INTERNAL validate_payload               events: validation.start, validation.ok
-└─ CLIENT  call_apim                        attrs: http.status_code=200
+└─ CLIENT  call_downstream                  attrs: http.status_code=200
    + logs "tool invocation received", "tool invocation completed" attached at the right span
 ```
 
 ---
 
-## 9. The MCP → APIM → governance → backend flow
+## 9. Multi-service trace propagation
 
-The whole point is one connected trace across all hops. Each service does the same two
+The whole point is one connected trace across all hops, however many services a request
+passes through (`service-a → service-b → service-c → …`). Each service does the same two
 things: **continue the inbound trace** (SERVER span from headers) and **propagate
 outbound** (`otel_inject_headers` on the next call).
 
 ```python
-# === MCP server: outbound to APIM ===
+# === Caller: outbound to the next service ===
 from opentelemetry.trace import SpanKind
 from otelio import otel_span, otel_inject_headers, otel_set_attributes
 
-with otel_span("apim.request", kind=SpanKind.CLIENT):
+with otel_span("call_downstream", kind=SpanKind.CLIENT):
     headers = otel_inject_headers({"Authorization": token})
-    resp = http.post(apim_url, headers=headers, json=payload)
+    resp = http.post(downstream_url, headers=headers, json=payload)
     otel_set_attributes({"http.status_code": resp.status_code})
 
-# === Governance / backend app: inbound (continue the trace) ===
+# === Callee: inbound (continue the trace) ===
 from opentelemetry.trace import SpanKind
 from otelio import otel_span, otel_context_from_headers
 
@@ -518,8 +520,7 @@ with otel_span("handle.request", kind=SpanKind.SERVER, context=ctx):
 ```
 
 Because every service sets its own `service_name` in `init_otelio` and forwards context
-via headers, a single request appears as **one trace** spanning MCP → APIM → governance →
-backend.
+via headers, a single request appears as **one trace** spanning every service it touches.
 
 ---
 

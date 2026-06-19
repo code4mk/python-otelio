@@ -25,7 +25,6 @@ keywords = [
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Topic :: System :: Monitoring",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Programming Language :: Python :: 3.10",
@@ -73,7 +72,7 @@ exclude = [
     "/.gitignore",
     "/.env",
     "/publish.sh",
-    "/_docs",
+    "/docs",
 ]
 
 [tool.ruff]

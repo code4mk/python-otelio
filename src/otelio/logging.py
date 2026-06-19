@@ -25,8 +25,13 @@ if TYPE_CHECKING:
     from loguru import Message
 
 _LOGURU_TO_STD = {
-    "TRACE": 5, "DEBUG": 10, "INFO": 20, "SUCCESS": 25,
-    "WARNING": 30, "ERROR": 40, "CRITICAL": 50,
+    "TRACE": 5,
+    "DEBUG": 10,
+    "INFO": 20,
+    "SUCCESS": 25,
+    "WARNING": 30,
+    "ERROR": 40,
+    "CRITICAL": 50,
 }
 
 
@@ -46,8 +51,7 @@ def setup_loguru(
     export_level: str = "DEBUG",
 ) -> None:
     """Reconfigure Loguru with a console sink and an OTel-export sink."""
-    otel_handler = LoggingHandler(level=logging.NOTSET,
-                                  logger_provider=logger_provider)
+    otel_handler = LoggingHandler(level=logging.NOTSET, logger_provider=logger_provider)
 
     def _otel_sink(message: "Message") -> None:
         r = message.record
@@ -58,7 +62,7 @@ def setup_loguru(
             lineno=r["line"],
             msg=r["message"],
             args=(),
-            exc_info=r["exception"],   # loguru's (type, value, tb) namedtuple
+            exc_info=r["exception"],  # loguru's (type, value, tb) namedtuple
             func=r["function"],
         )
         # enqueue=True runs this on Loguru's writer thread, where the OTel
@@ -77,16 +81,17 @@ def setup_loguru(
             )
             token = attach(set_span_in_context(NonRecordingSpan(span_ctx)))
         try:
-            otel_handler.emit(std)     # backend; span context attached here
+            otel_handler.emit(std)  # backend; span context attached here
         finally:
             if token is not None:
                 detach(token)
 
-    logger.remove()                    # drop loguru's default stderr sink
+    logger.remove()  # drop loguru's default stderr sink
     logger.configure(patcher=_trace_patcher)
     logger.add(
-        sys.stderr, level=console_level,
+        sys.stderr,
+        level=console_level,
         format="<green>{time:HH:mm:ss.SSS}</green> | {level: <8} | "
-               "trace={extra[trace_id]} | {name}:{line} - {message}",
+        "trace={extra[trace_id]} | {name}:{line} - {message}",
     )
     logger.add(_otel_sink, level=export_level, enqueue=True)

@@ -1,5 +1,5 @@
 """
-Otelio — a copy-paste OpenTelemetry + Loguru toolkit shared across projects.
+Otelio — a small OpenTelemetry + Loguru toolkit for Python services.
 
 Import surface kept intentionally small: bootstrap once with ``init_otelio``,
 then use ``otel_span`` / helpers anywhere in the codebase.

@@ -37,20 +37,21 @@ def init_otelio(
     """
     s = load_settings(service_name, service_version, environment)
 
-    resource = Resource.create({
-        **(resource_attributes or {}),
-        "service.name": s.service_name,
-        "service.version": s.service_version,
-        "deployment.environment": s.environment,
-    })
+    resource = Resource.create(
+        {
+            **(resource_attributes or {}),
+            "service.name": s.service_name,
+            "service.version": s.service_version,
+            "deployment.environment": s.environment,
+        }
+    )
 
     tracer_provider = TracerProvider(resource=resource)
     tracer_provider.add_span_processor(BatchSpanProcessor(build_span_exporter(s)))
     trace.set_tracer_provider(tracer_provider)
 
     logger_provider = LoggerProvider(resource=resource)
-    logger_provider.add_log_record_processor(
-        BatchLogRecordProcessor(build_log_exporter(s)))
+    logger_provider.add_log_record_processor(BatchLogRecordProcessor(build_log_exporter(s)))
     set_logger_provider(logger_provider)
 
     setup_loguru(logger_provider)

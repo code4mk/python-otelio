@@ -34,8 +34,8 @@ def otel_set_baggage(items: Mapping[str, str]) -> object:
 
     Mirrors :func:`otel_set_attributes` — pass a mapping object. Unlike span
     attributes (local to one service), baggage rides the W3C ``baggage`` header
-    through APIM -> governance -> backend, so it is ideal for cross-cutting IDs
-    such as ``tenant.id`` / ``request.id`` / ``user.id``.
+    through every downstream hop, so it is ideal for cross-cutting IDs such as
+    ``tenant.id`` / ``request.id`` / ``user.id``.
 
     Baggage is sent in plaintext to every downstream service — **never put secrets
     or PII in it**, and keep entries small (it is header weight on every call).
@@ -68,16 +68,16 @@ def otel_get_all_baggage() -> dict[str, str]:
 # ---- attributes / events ----
 
 
-def otel_set_attributes(attributes: Mapping[str, Any],
-                        span: Span | None = None) -> None:
+def otel_set_attributes(attributes: Mapping[str, Any], span: Span | None = None) -> None:
     """Set attributes on the current span (or ``span``) when it is recording."""
     span = span or otel_current_span()
     if span and span.is_recording():
         span.set_attributes(dict(attributes))
 
 
-def otel_add_event(name: str, attributes: Mapping[str, Any] | None = None,
-                   span: Span | None = None) -> None:
+def otel_add_event(
+    name: str, attributes: Mapping[str, Any] | None = None, span: Span | None = None
+) -> None:
     """Add a timestamped event to the current span (or ``span``) when recording."""
     span = span or otel_current_span()
     if span and span.is_recording():

@@ -1,21 +1,39 @@
 # otelio
 
-> python open telemetry kit
+> Python OpenTelemetry + Loguru toolkit
 
 A small, batteries-included **OpenTelemetry + [Loguru](https://github.com/Delgan/loguru)**
 toolkit for Python services. Call `init_otelio(...)` once at startup and you get **traces**
-and **logs** that are automatically correlated by `trace_id` / `span_id`, exported to
-**SigNoz** (OTLP) locally or **Azure Application Insights** in dev/prod — switchable with a
-single environment variable, no code changes.
+and **logs** that are automatically correlated by `trace_id` / `span_id`, exported over
+**OTLP/gRPC** (SigNoz, Grafana, Jaeger, any OTLP collector) or to **Azure Application
+Insights** — switchable with a single environment variable, no code changes.
+
+[![PyPI](https://img.shields.io/pypi/v/otelio.svg)](https://pypi.org/project/otelio/)
+[![Python](https://img.shields.io/pypi/pyversions/otelio.svg)](https://pypi.org/project/otelio/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ---
+
+## Features
+
+- **One call to wire everything** — `init_otelio(...)` sets up the tracer + logger
+  providers, the Loguru bridge, and a clean-shutdown flush hook.
+- **Logs correlate to spans automatically** — keep using Loguru; every record is stamped
+  with the active `trace_id` / `span_id` and exported.
+- **Backend-agnostic** — OTLP/gRPC or Azure App Insights via the `OTELIO_TARGET` env var.
+  Exporter SDKs are imported lazily, so you only install what you use.
+- **Cross-service tracing built in** — W3C `traceparent` + `baggage` propagation helpers so
+  one request shows up as a single connected trace across service boundaries.
+- **Tiny surface** — eleven well-documented functions, nothing to configure in code.
 
 ## Install
 
 ```bash
-pip install otelio                # core + OTLP/gRPC (SigNoz) exporter
-pip install "otelio[azure]"       # also Azure Application Insights exporter
+pip install otelio                # core + OTLP/gRPC exporter
+pip install "otelio[azure]"       # also the Azure Application Insights exporter
 ```
+
+Requires Python 3.10+.
 
 ## Quick start
 
@@ -36,20 +54,22 @@ with otel_span("handle_request", attributes={"route": "/search"}):
 
 ## Configuration
 
+All configuration is via environment variables.
+
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `OTELIO_TARGET` | `otlp` | `otlp` (SigNoz / local) or `azure` (App Insights). |
+| `OTELIO_TARGET` | `otlp` | `otlp` (any OTLP/gRPC collector) or `azure` (App Insights). |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4317` | OTLP/gRPC collector endpoint (target `otlp`). |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | — | App Insights connection string (target `azure`). |
 | `OTEL_SERVICE_NAME` | the `service_name` arg | Overrides the service name. |
 | `DEPLOYMENT_ENVIRONMENT` | `local` | Set as the `deployment.environment` resource attribute. |
 
 ```bash
-# Local (SigNoz)
+# OTLP collector (SigNoz, Grafana, Jaeger, ...)
 export OTELIO_TARGET=otlp
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 
-# Dev / Production (Azure App Insights)
+# Azure Application Insights
 export OTELIO_TARGET=azure
 export APPLICATIONINSIGHTS_CONNECTION_STRING="InstrumentationKey=...;IngestionEndpoint=..."
 export DEPLOYMENT_ENVIRONMENT=production
@@ -92,9 +112,10 @@ with otel_span("serve_request", kind=SpanKind.SERVER, context=ctx):
     ...
 ```
 
----
+## Documentation
 
-See the full [usage guide](docs/usage.md) for spans, logging, baggage, and a complete
+See the full [usage guide](https://github.com/code4mk/python-otelio/blob/main/docs/usage.md)
+for bootstrapping, spans, correlated logging, context propagation, baggage, and a complete
 FastAPI example.
 
 ## License
