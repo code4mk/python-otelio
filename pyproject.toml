@@ -35,15 +35,18 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "opentelemetry-api>=1.42.1",
-    "opentelemetry-sdk>=1.42.1",
-    "opentelemetry-exporter-otlp-proto-grpc>=1.42.1",
+    # Capped at 1.40.* because the Azure exporter (optional dep below) hard-pins the
+    # OTel api/sdk to ==1.40; OTel 1.41+ drops `LogData` from opentelemetry.sdk._logs,
+    # which the Azure exporter imports. Bump together once Azure supports a newer OTel.
+    "opentelemetry-api==1.40.*",
+    "opentelemetry-sdk==1.40.*",
+    "opentelemetry-exporter-otlp-proto-grpc==1.40.*",
     "loguru>=0.7.3",
 ]
 
 [project.optional-dependencies]
 azure = [
-    "azure-monitor-opentelemetry-exporter>=1.0.0b45",
+    "azure-monitor-opentelemetry-exporter>=1.0.0b53",
 ]
 dev = [
     "pytest>=7.0.0",
