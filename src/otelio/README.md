@@ -49,9 +49,8 @@ src/otelio/
 | `otel_set_baggage(items)` | Put a mapping of key/values into baggage so they propagate to every downstream hop. Returns a detach token. |
 | `otel_get_baggage(key)` | Read one baggage value from the current context (or `None`). |
 | `otel_get_all_baggage()` | Read all baggage entries as a plain `dict`. |
-| `otel_set_attributes(span, attributes)` | Set attributes on a span (guards `is_recording()`). |
-| `otel_add_event(span, name, attributes=None)` | Add a timestamped event to a span. |
-| `record_governance_decision(span, *, allowed, reason="", code="")` | Record an APIM/governance allow-or-deny outcome as attributes + an event. |
+| `otel_set_attributes(attributes, span=None)` | Set attributes on the current span, or `span` if given (guards `is_recording()`). |
+| `otel_add_event(name, attributes=None, span=None)` | Add a timestamped event to the current span, or `span` if given. |
 
 ---
 
@@ -133,8 +132,8 @@ logger.info("handling request", request_id=req_id)
 ```python
 from otelio import otel_span, otel_set_attributes
 
-with otel_span("handle_tool_call", attributes={"tool.name": name}) as s:
-    otel_set_attributes(s, {"tool.args.count": len(args)})
+with otel_span("handle_tool_call", attributes={"tool.name": name}):
+    otel_set_attributes({"tool.args.count": len(args)})
     result = do_work()
 ```
 
@@ -166,27 +165,8 @@ from opentelemetry.trace import SpanKind
 from otelio import otel_context_from_headers, otel_span
 
 ctx = otel_context_from_headers(request.headers)
-with otel_span("serve_request", kind=SpanKind.SERVER, context=ctx) as s:
+with otel_span("serve_request", kind=SpanKind.SERVER, context=ctx):
     ...
-```
-
-### 5. Record the governance decision
-
-The decision is the most important branch in the system, so make it first-class on the
-span (both queryable attributes and a timeline event):
-
-```python
-from otelio import otel_current_span, record_governance_decision
-
-allowed, code, reason = check_governance(request)
-record_governance_decision(
-    otel_current_span(),
-    allowed=allowed,
-    reason=reason,
-    code=code,
-)
-if not allowed:
-    return error_response(code)
 ```
 
 ---

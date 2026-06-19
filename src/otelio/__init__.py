@@ -14,7 +14,6 @@ from .helpers import (
     otel_inject_headers,
     otel_set_attributes,
     otel_set_baggage,
-    record_governance_decision,
 )
 from .tracing import otel_current_span, otel_get_tracer, otel_span
 
@@ -30,5 +29,4 @@ __all__ = [
     "otel_set_attributes",
     "otel_set_baggage",
     "otel_span",
-    "record_governance_decision",
 ]

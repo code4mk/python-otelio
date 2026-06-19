@@ -30,8 +30,8 @@ init_otelio(service_name="my-service", service_version="1.0.0")
 logger.info("service started")
 
 # 3. Wrap units of work in spans; exceptions are recorded and re-raised.
-with otel_span("handle_request", attributes={"route": "/search"}) as span:
-    otel_set_attributes(span, {"result.count": 12})
+with otel_span("handle_request", attributes={"route": "/search"}):
+    otel_set_attributes({"result.count": 12})
 ```
 
 ## Configuration
@@ -68,9 +68,8 @@ export DEPLOYMENT_ENVIRONMENT=production
 | `otel_set_baggage(items)` | Put a mapping of key/values into baggage so they propagate downstream. Returns a detach token. |
 | `otel_get_baggage(key)` | Read one baggage value from the current context (or `None`). |
 | `otel_get_all_baggage()` | Read all baggage entries as a plain `dict`. |
-| `otel_set_attributes(span, attributes)` | Set attributes on a span (guards `is_recording()`). |
-| `otel_add_event(span, name, attributes=None)` | Add a timestamped event to a span. |
-| `record_governance_decision(span, *, allowed, reason="", code="")` | Record an allow-or-deny outcome as attributes + an event. |
+| `otel_set_attributes(attributes, span=None)` | Set attributes on the current span, or `span` if given (guards `is_recording()`). |
+| `otel_add_event(name, attributes=None, span=None)` | Add a timestamped event to the current span, or `span` if given. |
 
 ## Context propagation across services
 

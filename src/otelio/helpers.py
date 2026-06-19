@@ -8,6 +8,8 @@ from opentelemetry.context import Context, attach, get_current
 from opentelemetry.propagate import extract, inject
 from opentelemetry.trace import Span
 
+from .tracing import otel_current_span
+
 # ---- propagation (W3C traceparent + baggage) ----
 
 
@@ -66,31 +68,17 @@ def otel_get_all_baggage() -> dict[str, str]:
 # ---- attributes / events ----
 
 
-def otel_set_attributes(span: Span, attributes: Mapping[str, Any]) -> None:
-    """Set attributes on ``span`` when it is recording."""
+def otel_set_attributes(attributes: Mapping[str, Any],
+                        span: Span | None = None) -> None:
+    """Set attributes on the current span (or ``span``) when it is recording."""
+    span = span or otel_current_span()
     if span and span.is_recording():
         span.set_attributes(dict(attributes))
 
 
-def otel_add_event(span: Span, name: str,
-              attributes: Mapping[str, Any] | None = None) -> None:
-    """Add a timestamped event to ``span`` when it is recording."""
+def otel_add_event(name: str, attributes: Mapping[str, Any] | None = None,
+                   span: Span | None = None) -> None:
+    """Add a timestamped event to the current span (or ``span``) when recording."""
+    span = span or otel_current_span()
     if span and span.is_recording():
         span.add_event(name, attributes=dict(attributes or {}))
-
-
-def record_governance_decision(
-    span: Span,
-    *,
-    allowed: bool,
-    reason: str = "",
-    code: str = "",
-) -> None:
-    """Record an APIM/governance allow-or-deny outcome as attributes and an event."""
-    otel_set_attributes(span, {
-        "governance.allowed": allowed,
-        "governance.reason": reason,
-        "governance.code": code,
-    })
-    otel_add_event(span, "governance.decision",
-              {"allowed": allowed, "reason": reason, "code": code})

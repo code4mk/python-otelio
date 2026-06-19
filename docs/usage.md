@@ -33,7 +33,7 @@ what our services run on, but nothing in `otelio` is FastAPI-specific.
 | --- | --- | --- |
 | **Traces / spans** | A timed unit of work, possibly nested, possibly spanning services. | `otel_span(...)`, `otel_current_span()` |
 | **Logs** | Normal Loguru logs, automatically stamped with the active `trace_id` / `span_id` and exported to the backend. | `loguru.logger` |
-| **Helpers** | Put data on spans, carry trace context + baggage across HTTP calls. | `otel_set_attributes`, `otel_add_event`, `record_governance_decision`, `otel_inject_headers`, `otel_context_from_headers`, `otel_set_baggage`, `otel_get_baggage`, `otel_get_all_baggage` |
+| **Helpers** | Put data on spans, carry trace context + baggage across HTTP calls. | `otel_set_attributes`, `otel_add_event`, `otel_inject_headers`, `otel_context_from_headers`, `otel_set_baggage`, `otel_get_baggage`, `otel_get_all_baggage` |
 
 Everything flows to **SigNoz** locally or **Azure Application Insights** in dev/prod,
 selected purely by the `OTELIO_TARGET` env var — your code never changes.
@@ -207,48 +207,51 @@ with otel_span("handle_order"):
 ### Reaching the current span
 
 When you are deep in the call stack and just need the span that is already active (e.g. to
-attach an attribute), use `otel_current_span()` instead of threading the span object
-through every function:
+attach an attribute), call the helpers directly — they default to `otel_current_span()`,
+so you never have to thread the span object through every function:
 
 ```python
-from otelio import otel_current_span, otel_set_attributes
+from otelio import otel_set_attributes
 
 def deep_helper():
-    otel_set_attributes(otel_current_span(), {"helper.ran": True})
+    otel_set_attributes({"helper.ran": True})
 ```
 
-> Outside any span, `otel_current_span()` returns a non-recording no-op span, so the
-> helpers below are safe to call unconditionally.
+> Outside any span, the current span is a non-recording no-op span, so the helpers below
+> are safe to call unconditionally. Use `otel_current_span()` directly only when you need
+> the span object itself.
 
 ---
 
 ## 5. Helpers — attributes & events
 
-### `otel_set_attributes(span, attributes)`
+### `otel_set_attributes(attributes, span=None)`
 
 Attach key/value data to a span. Attributes are queryable/filterable in the backend. Use
-dotted, namespaced keys (`http.status_code`, `user.id`, `db.rows`).
+dotted, namespaced keys (`http.status_code`, `user.id`, `db.rows`). Defaults to the
+current span; pass `span=` only to target a span other than the active one.
 
 ```python
-from otelio import otel_current_span, otel_set_attributes
+from otelio import otel_set_attributes
 
-otel_set_attributes(otel_current_span(), {
+otel_set_attributes({
     "http.method": "POST",
     "http.route": "/tools/invoke",
     "tool.name": tool_name,
 })
 ```
 
-### `otel_add_event(span, name, attributes=None)`
+### `otel_add_event(name, attributes=None, span=None)`
 
 Record a **timestamped event** on the span's timeline — a "something happened at this
-instant" marker. Good for cache hits, retries, state transitions.
+instant" marker. Good for cache hits, retries, state transitions. Defaults to the current
+span; pass `span=` only to target a span other than the active one.
 
 ```python
-from otelio import otel_add_event, otel_current_span
+from otelio import otel_add_event
 
-otel_add_event(otel_current_span(), "cache.miss", {"key": cache_key})
-otel_add_event(otel_current_span(), "retry", {"attempt": 2, "backoff_ms": 250})
+otel_add_event("cache.miss", {"key": cache_key})
+otel_add_event("retry", {"attempt": 2, "backoff_ms": 250})
 ```
 
 **Attribute vs event:** an attribute describes the span as a whole ("this span had
@@ -256,25 +259,6 @@ status 200"); an event marks a point in time during the span ("at t=12ms we retr
 
 Both helpers guard on `span.is_recording()`, so they are no-ops when there is no real span
 — safe to call anywhere.
-
-### `record_governance_decision(span, *, allowed, reason="", code="")`
-
-Domain-specific helper for the APIM/governance allow-or-deny outcome. It records the
-decision as **both** queryable attributes (`governance.allowed`, `governance.reason`,
-`governance.code`) **and** a `governance.decision` event on the timeline.
-
-```python
-from otelio import otel_current_span, record_governance_decision
-
-record_governance_decision(
-    otel_current_span(),
-    allowed=False,
-    reason="quota_exceeded",
-    code="429",
-)
-```
-
-> Note `allowed` is **keyword-only** — call it as `allowed=...`, not positionally.
 
 ---
 
@@ -324,7 +308,7 @@ root trace — so this is safe at the edge of your system too.
 
 **Baggage** is a set of key/value pairs that travels with the trace context across every
 service hop (it rides the W3C `baggage` header). Use it for **cross-cutting identifiers**
-every service should know — `tenant.id`, `request.id`, `user.id`, `governance.policy`.
+every service should know — `tenant.id`, `request.id`, `user.id`.
 
 > **Baggage vs span attributes:** a span attribute is local to one service's span.
 > Baggage propagates to **all** downstream services. Set a tenant id once at the MCP edge
@@ -378,9 +362,9 @@ Baggage does **not** become span attributes automatically (this is by design —
 cheap). Copy what you care about onto the span explicitly:
 
 ```python
-from otelio import otel_current_span, otel_get_all_baggage, otel_set_attributes
+from otelio import otel_get_all_baggage, otel_set_attributes
 
-otel_set_attributes(otel_current_span(), otel_get_all_baggage())
+otel_set_attributes(otel_get_all_baggage())
 ```
 
 ### ⚠️ Cautions
@@ -415,7 +399,6 @@ from otelio import (
     otel_set_attributes,
     otel_set_baggage,
     otel_span,
-    record_governance_decision,
 )
 
 
@@ -437,8 +420,8 @@ async def tracing_middleware(request: Request, call_next):
         f"{request.method} {request.url.path}",
         kind=SpanKind.SERVER,
         context=ctx,
-    ) as span:
-        otel_set_attributes(span, {
+    ):
+        otel_set_attributes({
             "http.method": request.method,
             "http.route": request.url.path,
         })
@@ -451,7 +434,7 @@ async def tracing_middleware(request: Request, call_next):
             response = await call_next(request)
         finally:
             detach(token)  # don't leak baggage into the next request
-        otel_set_attributes(span, {"http.status_code": response.status_code})
+        otel_set_attributes({"http.status_code": response.status_code})
         return response
 
 
@@ -461,15 +444,15 @@ async def invoke_tool(tool_name: str, request: Request):
     logger.info("tool invocation received", tool=tool_name)
 
     payload = await request.json()
-    otel_set_attributes(otel_current_span(), {"tool.name": tool_name})
+    otel_set_attributes({"tool.name": tool_name})
 
     with otel_span("validate_payload"):
-        otel_add_event(otel_current_span(), "validation.start")
+        otel_add_event("validation.start")
         # ... validate ...
-        otel_add_event(otel_current_span(), "validation.ok")
+        otel_add_event("validation.ok")
 
     # 3. Call APIM downstream, carrying the trace context forward.
-    with otel_span("call_apim", kind=SpanKind.CLIENT) as s:
+    with otel_span("call_apim", kind=SpanKind.CLIENT):
         headers = otel_inject_headers({"Authorization": request.headers.get("authorization", "")})
         async with httpx.AsyncClient() as client:
             resp = await client.post(
@@ -478,17 +461,11 @@ async def invoke_tool(tool_name: str, request: Request):
                 json=payload,
             )
 
-        allowed = resp.status_code < 400
-        record_governance_decision(
-            s,
-            allowed=allowed,
-            reason=resp.text[:200] if not allowed else "",
-            code=str(resp.status_code),
-        )
+        otel_set_attributes({"http.status_code": resp.status_code})
 
-    if not allowed:
-        logger.warning("governance denied request", tool=tool_name, code=resp.status_code)
-        return {"error": "governance_denied", "code": resp.status_code}
+    if resp.status_code >= 400:
+        logger.warning("downstream returned error", tool=tool_name, code=resp.status_code)
+        return {"error": "downstream_error", "code": resp.status_code}
 
     logger.info("tool invocation completed", tool=tool_name)
     return resp.json()
@@ -499,8 +476,7 @@ What you get in SigNoz / App Insights for one request:
 ```
 SERVER  POST /tools/search                 (root span — continued from caller if traceparent present)
 ├─ INTERNAL validate_payload               events: validation.start, validation.ok
-└─ CLIENT  call_apim                        attrs: governance.allowed=true, governance.code=200
-                                            event: governance.decision
+└─ CLIENT  call_apim                        attrs: http.status_code=200
    + logs "tool invocation received", "tool invocation completed" attached at the right span
 ```
 
@@ -515,16 +491,12 @@ outbound** (`otel_inject_headers` on the next call).
 ```python
 # === MCP server: outbound to APIM ===
 from opentelemetry.trace import SpanKind
-from otelio import otel_span, otel_inject_headers, record_governance_decision
+from otelio import otel_span, otel_inject_headers, otel_set_attributes
 
-with otel_span("apim.request", kind=SpanKind.CLIENT) as s:
+with otel_span("apim.request", kind=SpanKind.CLIENT):
     headers = otel_inject_headers({"Authorization": token})
     resp = http.post(apim_url, headers=headers, json=payload)
-    record_governance_decision(
-        s,
-        allowed=resp.status_code < 400,
-        code=str(resp.status_code),
-    )
+    otel_set_attributes({"http.status_code": resp.status_code})
 
 # === Governance / backend app: inbound (continue the trace) ===
 from opentelemetry.trace import SpanKind
@@ -537,8 +509,7 @@ with otel_span("handle.request", kind=SpanKind.SERVER, context=ctx):
 
 Because every service sets its own `service_name` in `init_otelio` and forwards context
 via headers, a single request appears as **one trace** spanning MCP → APIM → governance →
-backend, and the governance allow/deny decision is visible as attributes + an event on the
-APIM client span.
+backend.
 
 ---
 
@@ -547,10 +518,9 @@ APIM client span.
 - **Initialise exactly once.** Multiple `init_otelio` calls create duplicate providers.
 - **Don't pass huge / sensitive values as attributes.** Truncate large strings; never put
   secrets or tokens on a span — they're exported to the backend.
-- **Helpers are null-safe.** `otel_set_attributes` / `otel_add_event` /
-  `record_governance_decision` no-op when there's no recording span, so you can call them
-  without guarding.
-- **`allowed` is keyword-only** on `record_governance_decision`.
+- **Helpers are null-safe.** `otel_set_attributes` / `otel_add_event` no-op when there's
+  no recording span, so you can call them without guarding. Both default to the current
+  span; pass `span=` only to target a different one.
 - **Logs only correlate inside a span.** A log line emitted before any span opens shows
   `trace=-`; that's expected.
 - **Async is fine.** OpenTelemetry context follows `async`/`await` within a task. If you
