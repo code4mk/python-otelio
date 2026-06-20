@@ -6,6 +6,13 @@ then use ``otel_span`` / helpers anywhere in the codebase.
 """
 
 from .bootstrap import init_otelio
+from .config import Settings
+from .exporters import (
+    LogExporterEntry,
+    TraceExporterEntry,
+    register_log_exporter,
+    register_trace_exporter,
+)
 from .helpers import (
     otel_add_event,
     otel_context_from_headers,
@@ -18,6 +25,9 @@ from .helpers import (
 from .tracing import otel_current_span, otel_get_tracer, otel_span
 
 __all__ = [
+    "LogExporterEntry",
+    "Settings",
+    "TraceExporterEntry",
     "init_otelio",
     "otel_add_event",
     "otel_context_from_headers",
@@ -29,4 +39,6 @@ __all__ = [
     "otel_set_attributes",
     "otel_set_baggage",
     "otel_span",
+    "register_log_exporter",
+    "register_trace_exporter",
 ]

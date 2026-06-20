@@ -59,7 +59,7 @@ All configuration is via environment variables.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `OTELIO_TARGET` | `otlp` | `otlp` (any OTLP/gRPC collector) or `azure` (App Insights). |
+| `OTELIO_TARGET` | `otlp` | `otlp` (any OTLP/gRPC collector), `azure` (App Insights), or a [custom registered target](docs/custom-exporter.md). |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4317` | OTLP/gRPC collector endpoint (target `otlp`). |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | — | App Insights connection string (target `azure`). |
 | `OTEL_SERVICE_NAME` | the `service_name` arg | Overrides the service name. |
@@ -81,7 +81,7 @@ export OTELIO_ENVIRONMENT=production
 
 | Symbol | Purpose |
 | --- | --- |
-| `init_otelio(service_name, service_version, environment=None, resource_attributes=None)` | Bootstrap tracing + logging once at startup. `resource_attributes` adds extra resource-level keys to every span + log. Returns the resolved `Settings`. |
+| `init_otelio(service_name, service_version, environment=None, resource_attributes=None, trace_exporters=None, log_exporters=None)` | Bootstrap tracing + logging once at startup. `resource_attributes` adds extra resource-level keys to every span + log. `trace_exporters` / `log_exporters` register [custom exporters](docs/custom-exporter.md) inline (lists of `{"name", "factory"}`). Returns the resolved `Settings`. |
 | `otel_span(name, attributes=None, kind=SpanKind.INTERNAL, context=None)` | Context manager that starts a span, records exceptions, and re-raises. |
 | `otel_current_span()` | The span active in the current context. |
 | `otel_get_tracer()` | The shared `otelio` tracer. |
@@ -92,6 +92,9 @@ export OTELIO_ENVIRONMENT=production
 | `otel_get_all_baggage()` | Read all baggage entries as a plain `dict`. |
 | `otel_set_attributes(attributes, span=None)` | Set attributes on the current span, or `span` if given (guards `is_recording()`). |
 | `otel_add_event(name, attributes=None, span=None)` | Add a timestamped event to the current span, or `span` if given. |
+| `register_trace_exporter(name, factory)` | Register a custom trace-exporter factory under `name`, selectable via `OTELIO_TARGET`. See [docs/custom-exporter.md](docs/custom-exporter.md). |
+| `register_log_exporter(name, factory)` | Register a custom log-exporter factory under `name`, selectable via `OTELIO_TARGET`. |
+| `Settings` | The resolved config dataclass passed to exporter factories. |
 
 ## Context propagation across services
 
