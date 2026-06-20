@@ -13,7 +13,8 @@ from typing import TYPE_CHECKING
 from loguru import logger
 from opentelemetry import trace
 from opentelemetry.context import attach, detach
-from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+from opentelemetry.instrumentation.logging.handler import LoggingHandler
+from opentelemetry.sdk._logs import LoggerProvider
 from opentelemetry.trace import (
     NonRecordingSpan,
     SpanContext,

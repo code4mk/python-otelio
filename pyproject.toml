@@ -40,6 +40,9 @@ dependencies = [
     "opentelemetry-api==1.40.*",
     "opentelemetry-sdk==1.40.*",
     "opentelemetry-exporter-otlp-proto-grpc==1.40.*",
+    # Provides the non-deprecated LoggingHandler (the SDK's is deprecated as of
+    # 1.40). 0.61b0 is the instrumentation release that pairs with OTel 1.40.*.
+    "opentelemetry-instrumentation-logging==0.61b0",
     "loguru>=0.7.3",
 ]
 
