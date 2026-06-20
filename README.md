@@ -63,7 +63,8 @@ All configuration is via environment variables.
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4317` | OTLP/gRPC collector endpoint (target `otlp`). |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | — | App Insights connection string (target `azure`). |
 | `OTEL_SERVICE_NAME` | the `service_name` arg | Overrides the service name. |
-| `DEPLOYMENT_ENVIRONMENT` | `local` | Set as the `deployment.environment` resource attribute. |
+| `OTELIO_ENVIRONMENT` | `local` | Set as the `deployment.environment` resource attribute. |
+| `OTELIO_CONSOLE` | — | Truthy (`1`/`true`) also prints spans to stdout for local debugging. |
 
 ```bash
 # OTLP collector (SigNoz, Grafana, Jaeger, ...)
@@ -73,7 +74,7 @@ export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 # Azure Application Insights
 export OTELIO_TARGET=azure
 export APPLICATIONINSIGHTS_CONNECTION_STRING="InstrumentationKey=...;IngestionEndpoint=..."
-export DEPLOYMENT_ENVIRONMENT=production
+export OTELIO_ENVIRONMENT=production
 ```
 
 ## Public API (`from otelio import ...`)

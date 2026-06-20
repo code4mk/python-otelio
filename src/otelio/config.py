@@ -14,6 +14,7 @@ class Settings:
     target: str  # "otlp" | "azure"
     otlp_endpoint: str
     azure_conn_str: str | None
+    console: bool  # also print spans to stdout for local debugging (logs already have Loguru's console sink)
 
 
 def load_settings(
@@ -25,8 +26,9 @@ def load_settings(
     return Settings(
         service_name=os.getenv("OTEL_SERVICE_NAME", service_name),
         service_version=service_version,
-        environment=environment or os.getenv("DEPLOYMENT_ENVIRONMENT", "local"),
+        environment=environment or os.getenv("OTELIO_ENVIRONMENT", "local"),
         target=os.getenv("OTELIO_TARGET", "otlp").lower(),  # local -> otlp/signoz
         otlp_endpoint=os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317"),
         azure_conn_str=os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"),
+        console=os.getenv("OTELIO_CONSOLE", "").lower() in ("1", "true", "yes", "on"),
     )

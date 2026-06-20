@@ -57,7 +57,7 @@ from otelio import init_otelio
 init_otelio(
     service_name="my-service",
     service_version=version("my-service"),
-    # environment="production",  # optional; defaults to $DEPLOYMENT_ENVIRONMENT or "local"
+    # environment="production",  # optional; defaults to $OTELIO_ENVIRONMENT or "local"
     # resource_attributes={      # optional; stamped on every span + log this process emits
     #     "service.namespace": "payments",
     #     "service.instance.id": socket.gethostname(),
