@@ -92,9 +92,7 @@ export OTELIO_ENVIRONMENT=production
 | `otel_get_all_baggage()` | Read all baggage entries as a plain `dict`. |
 | `otel_set_attributes(attributes, span=None)` | Set attributes on the current span, or `span` if given (guards `is_recording()`). |
 | `otel_add_event(name, attributes=None, span=None)` | Add a timestamped event to the current span, or `span` if given. |
-| `register_trace_exporter(name, factory)` | Register a custom trace-exporter factory under `name`, selectable via `OTELIO_TARGET`. See [docs/custom-exporter.md](docs/custom-exporter.md). |
-| `register_log_exporter(name, factory)` | Register a custom log-exporter factory under `name`, selectable via `OTELIO_TARGET`. |
-| `Settings` | The resolved config dataclass passed to exporter factories. |
+| `Settings` | The resolved config dataclass passed to exporter factories (see [custom exporters](docs/custom-exporter.md)). |
 
 ## Context propagation across services
 

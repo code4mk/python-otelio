@@ -15,12 +15,11 @@ backend (Loki, an HTTP/proto OTLP exporter, a console exporter, a vendor SDK, �
 
 1. [Built-in targets](#1-built-in-targets)
 2. [How it works](#2-how-it-works)
-3. [Register via `init_otelio` (recommended)](#3-register-via-init_otelio-recommended)
-4. [Register via the module-level functions](#4-register-via-the-module-level-functions)
-5. [Select it from the environment](#5-select-it-from-the-environment)
-6. [Full example — OTLP over HTTP](#6-full-example--otlp-over-http)
-7. [Overriding a built-in target](#7-overriding-a-built-in-target)
-8. [Gotchas](#8-gotchas)
+3. [Register your exporter](#3-register-your-exporter)
+4. [Select it from the environment](#4-select-it-from-the-environment)
+5. [Full example — OTLP over HTTP](#5-full-example--otlp-over-http)
+6. [Overriding a built-in target](#6-overriding-a-built-in-target)
+7. [Gotchas](#7-gotchas)
 
 ---
 
@@ -63,7 +62,7 @@ Receiving `Settings` means your factory can read `s.otlp_endpoint`, `s.azure_con
 
 ---
 
-## 3. Register via `init_otelio` (recommended)
+## 3. Register your exporter
 
 Pass your custom exporters straight to `init_otelio` through two optional list params,
 `trace_exporters` and `log_exporters`. Each is a list of `{"name": ..., "factory": ...}`
@@ -108,34 +107,7 @@ if you want your editor to check it.
 
 ---
 
-## 4. Register via the module-level functions
-
-If you'd rather keep registration out of your entrypoint (e.g. in a reusable telemetry
-package), the same registry is exposed as two functions. The only rule is that the module
-calling them must be **imported before `init_otelio` runs**.
-
-```python
-# mypkg/telemetry.py
-from otelio import Settings, register_log_exporter, register_trace_exporter
-
-register_trace_exporter("otlp-http", build_http_traces)
-register_log_exporter("otlp-http", build_http_logs)
-```
-
-```python
-# main.py
-import mypkg.telemetry  # noqa: F401  -- import for its registration side effect
-from otelio import init_otelio
-
-init_otelio("my-service", "1.0.0")   # OTELIO_TARGET=otlp-http now resolves
-```
-
-Either path writes to the same registry — the `init_otelio` params are just sugar that
-calls these for you.
-
----
-
-## 5. Select it from the environment
+## 4. Select it from the environment
 
 Nothing in your code changes per environment — only the env var:
 
@@ -150,7 +122,7 @@ purely by flipping `OTELIO_TARGET`.
 
 ---
 
-## 6. Full example — OTLP over HTTP
+## 5. Full example — OTLP over HTTP
 
 A complete, runnable shape. (`otlp` ships gRPC; this adds an HTTP/proto variant.)
 
@@ -189,36 +161,38 @@ exporting over HTTP with zero changes to otelio.
 
 ---
 
-## 7. Overriding a built-in target
+## 6. Overriding a built-in target
 
-`register_*` is also how you **replace** a built-in. Registering under an existing name
-(`otlp` or `azure`) overwrites that entry — useful for tweaking exporter options (timeouts,
-headers, compression) the built-in factory doesn't expose:
+Registering under an existing name (`otlp` or `azure`) **replaces** that built-in — useful
+for tweaking exporter options (timeouts, headers, compression) the built-in factory doesn't
+expose. Just reuse the name:
 
 ```python
 from grpc import Compression
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 
-from otelio import Settings, register_trace_exporter
+from otelio import Settings, init_otelio
 
 
 def _gzip_traces(s: Settings):
     return OTLPSpanExporter(endpoint=s.otlp_endpoint, compression=Compression.Gzip)
 
 
-register_trace_exporter("otlp", _gzip_traces)  # OTELIO_TARGET=otlp now uses gzip
+init_otelio(
+    "my-service",
+    "1.0.0",
+    trace_exporters=[{"name": "otlp", "factory": _gzip_traces}],  # OTELIO_TARGET=otlp now uses gzip
+)
 ```
 
-Last registration for a name wins, so import order matters if two modules register the
-same name.
+The last factory registered for a name wins.
 
 ---
 
-## 8. Gotchas
+## 7. Gotchas
 
-- **Register before selecting.** Passing exporters to `init_otelio` handles this for you. If
-  you use the module-level `register_*` functions instead, the module must be imported
-  before `init_otelio` runs, or `OTELIO_TARGET=<name>` raises
+- **The name must be registered.** `OTELIO_TARGET=<name>` must match a built-in (`otlp` /
+  `azure`) or a name you passed to `init_otelio`, or it raises
   `ValueError: No trace exporter registered for …`.
 - **Register both signals.** One name needs both a trace factory and a log factory; otelio
   builds an exporter for each signal from the same `OTELIO_TARGET`.

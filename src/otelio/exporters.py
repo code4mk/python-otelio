@@ -6,24 +6,21 @@ Two targets ship built in: ``otlp`` (SigNoz / any OTLP-gRPC collector) and
 ``azure`` (App Insights). Their backend SDKs are imported lazily so a project
 only needs the deps for the target it actually uses.
 
-To add your own, register a factory by name (do this at import time, before
-:func:`otelio.init_otelio`)::
-
-    # mypkg/telemetry.py
-    from otelio import Settings, register_trace_exporter, register_log_exporter
+To add your own, pass a factory by name to :func:`otelio.init_otelio` via its
+``trace_exporters`` / ``log_exporters`` params, then select it from the
+environment — no otelio change needed::
 
     def build_loki_traces(s: Settings) -> SpanExporter:
         return MyLokiSpanExporter(endpoint=s.otlp_endpoint)
 
-    register_trace_exporter("loki", build_loki_traces)
-    register_log_exporter("loki", build_loki_logs)
+    init_otelio(
+        "my-service", "1.0.0",
+        trace_exporters=[{"name": "loki", "factory": build_loki_traces}],
+        log_exporters=[{"name": "loki", "factory": build_loki_logs}],
+    )
+    # then: OTELIO_TARGET=loki
 
-then select it from the environment — no otelio change needed::
-
-    OTELIO_TARGET=loki
-
-Just make sure ``mypkg.telemetry`` is imported before ``init_otelio`` runs, so
-the registration has happened.
+See ``docs/custom-exporter.md`` for the full guide.
 
 (The trace exporter's OTel type is ``SpanExporter``; otelio names its own surface
 after the *signal* — ``trace`` / ``log`` — to keep the pair consistent.)
@@ -91,25 +88,13 @@ _TRACE_EXPORTERS: dict[str, TraceExporterFactory] = {"otlp": _otlp_trace, "azure
 _LOG_EXPORTERS: dict[str, LogExporterFactory] = {"otlp": _otlp_log, "azure": _azure_log}
 
 
-def register_trace_exporter(name: str, factory: TraceExporterFactory) -> None:
-    """
-    Register (or override) a trace-exporter factory under ``name``.
-
-    The factory receives the resolved :class:`~otelio.config.Settings` and returns
-    a ``SpanExporter``. Call this before :func:`otelio.init_otelio`, then select it
-    with ``OTELIO_TARGET=<name>``.
-    """
+def _register_trace_exporter(name: str, factory: TraceExporterFactory) -> None:
+    """Register (or override) a trace-exporter factory under ``name`` (called by init_otelio)."""
     _TRACE_EXPORTERS[name.lower()] = factory
 
 
-def register_log_exporter(name: str, factory: LogExporterFactory) -> None:
-    """
-    Register (or override) a log-record-exporter factory under ``name``.
-
-    The factory receives the resolved :class:`~otelio.config.Settings` and returns
-    a ``LogRecordExporter``. Call this before :func:`otelio.init_otelio`, then
-    select it with ``OTELIO_TARGET=<name>``.
-    """
+def _register_log_exporter(name: str, factory: LogExporterFactory) -> None:
+    """Register (or override) a log-exporter factory under ``name`` (called by init_otelio)."""
     _LOG_EXPORTERS[name.lower()] = factory
 
 
@@ -121,8 +106,8 @@ def build_trace_exporter(s: Settings) -> SpanExporter:
         raise ValueError(
             f"No trace exporter registered for OTELIO_TARGET={s.target!r}. "
             f"Known targets: {sorted(_TRACE_EXPORTERS)}. "
-            f"Register one with otelio.register_trace_exporter({s.target!r}, ...) "
-            "before calling init_otelio."
+            f"Register one by passing trace_exporters=[{{'name': {s.target!r}, ...}}] "
+            "to init_otelio."
         ) from None
     return factory(s)
 
@@ -135,7 +120,7 @@ def build_log_exporter(s: Settings) -> LogRecordExporter:
         raise ValueError(
             f"No log exporter registered for OTELIO_TARGET={s.target!r}. "
             f"Known targets: {sorted(_LOG_EXPORTERS)}. "
-            f"Register one with otelio.register_log_exporter({s.target!r}, ...) "
-            "before calling init_otelio."
+            f"Register one by passing log_exporters=[{{'name': {s.target!r}, ...}}] "
+            "to init_otelio."
         ) from None
     return factory(s)

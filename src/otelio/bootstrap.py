@@ -21,10 +21,10 @@ from .config import Settings, load_settings
 from .exporters import (
     LogExporterEntry,
     TraceExporterEntry,
+    _register_log_exporter,
+    _register_trace_exporter,
     build_log_exporter,
     build_trace_exporter,
-    register_log_exporter,
-    register_trace_exporter,
 )
 from .logging import setup_loguru
 
@@ -61,9 +61,9 @@ def init_otelio(
     so buffered spans/logs are exported on a clean exit.
     """
     for entry in trace_exporters or ():
-        register_trace_exporter(entry["name"], entry["factory"])
+        _register_trace_exporter(entry["name"], entry["factory"])
     for entry in log_exporters or ():
-        register_log_exporter(entry["name"], entry["factory"])
+        _register_log_exporter(entry["name"], entry["factory"])
 
     s = load_settings(service_name, service_version, environment)
 
