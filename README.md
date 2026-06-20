@@ -8,6 +8,10 @@ and **logs** that are automatically correlated by `trace_id` / `span_id`, export
 **OTLP/gRPC** (SigNoz, Grafana, Jaeger, any OTLP collector) or to **Azure Application
 Insights** — switchable with a single environment variable, no code changes.
 
+> **Manual instrumentation, full control.** `otelio` is *not* an auto-instrumentation library.
+> Nothing is monkey-patched and no spans are created behind your back — you decide exactly what
+> gets traced and logged via explicit calls (`init_otelio`, `otel_span`, `logger.*`).
+
 [![PyPI](https://img.shields.io/pypi/v/python-otelio.svg)](https://pypi.org/project/python-otelio/)
 [![Python](https://img.shields.io/pypi/pyversions/python-otelio.svg)](https://pypi.org/project/python-otelio/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -65,6 +69,7 @@ All configuration is via environment variables.
 | `OTEL_SERVICE_NAME` | the `service_name` arg | Overrides the service name. |
 | `OTELIO_ENVIRONMENT` | `local` | Set as the `deployment.environment` resource attribute. |
 | `OTELIO_CONSOLE` | — | Truthy (`1`/`true`) also prints spans to stdout for local debugging. |
+| `OTEL_PYTHON_LOG_AUTO_INSTRUMENTATION` | `true` | **Required: set to `false`** when using `otelio` to avoid a duplicate logging handler. |
 
 ```bash
 # OTLP collector (SigNoz, Grafana, Jaeger, ...)
@@ -76,6 +81,12 @@ export OTELIO_TARGET=azure
 export APPLICATIONINSIGHTS_CONNECTION_STRING="InstrumentationKey=...;IngestionEndpoint=..."
 export OTELIO_ENVIRONMENT=production
 ```
+
+> **Required:** set `OTEL_PYTHON_LOG_AUTO_INSTRUMENTATION=false` when using `otelio`.
+>
+> ```bash
+> export OTEL_PYTHON_LOG_AUTO_INSTRUMENTATION=false
+> ```
 
 ## Public API (`from otelio import ...`)
 
