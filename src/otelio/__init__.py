@@ -5,6 +5,8 @@ Import surface kept intentionally small: bootstrap once with ``init_otelio``,
 then use ``otel_span`` / helpers anywhere in the codebase.
 """
 
+from opentelemetry.trace import StatusCode
+
 from .bootstrap import init_otelio
 from .config import Settings
 from .exporters import LogExporterEntry, TraceExporterEntry
@@ -16,12 +18,14 @@ from .helpers import (
     otel_inject_headers,
     otel_set_attributes,
     otel_set_baggage,
+    otel_set_span_status,
 )
 from .tracing import otel_current_span, otel_get_tracer, otel_span
 
 __all__ = [
     "LogExporterEntry",
     "Settings",
+    "StatusCode",
     "TraceExporterEntry",
     "init_otelio",
     "otel_add_event",
@@ -33,5 +37,6 @@ __all__ = [
     "otel_inject_headers",
     "otel_set_attributes",
     "otel_set_baggage",
+    "otel_set_span_status",
     "otel_span",
 ]

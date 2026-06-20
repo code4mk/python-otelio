@@ -6,7 +6,7 @@ from typing import Any
 from opentelemetry import baggage
 from opentelemetry.context import Context, attach, get_current
 from opentelemetry.propagate import extract, inject
-from opentelemetry.trace import Span
+from opentelemetry.trace import Span, Status, StatusCode
 
 from .tracing import otel_current_span
 
@@ -82,3 +82,18 @@ def otel_add_event(
     span = span or otel_current_span()
     if span and span.is_recording():
         span.add_event(name, attributes=dict(attributes or {}))
+
+
+def otel_set_span_status(
+    status: StatusCode, message: str | None = None, span: Span | None = None
+) -> None:
+    """
+    Set the status on the current span (or ``span``) when it is recording.
+
+    Pass a :class:`~opentelemetry.trace.StatusCode` (``UNSET``, ``OK`` or
+    ``ERROR``). The optional ``message`` is recorded as the status description
+    and is only meaningful for ``StatusCode.ERROR``.
+    """
+    span = span or otel_current_span()
+    if span and span.is_recording():
+        span.set_status(Status(status, message))

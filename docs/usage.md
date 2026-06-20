@@ -33,7 +33,7 @@ nothing in `otelio` is FastAPI-specific.
 | --- | --- | --- |
 | **Traces / spans** | A timed unit of work, possibly nested, possibly spanning services. | `otel_span(...)`, `otel_current_span()` |
 | **Logs** | Normal Loguru logs, automatically stamped with the active `trace_id` / `span_id` and exported to the backend. | `loguru.logger` |
-| **Helpers** | Put data on spans, carry trace context + baggage across HTTP calls. | `otel_set_attributes`, `otel_add_event`, `otel_inject_headers`, `otel_context_from_headers`, `otel_set_baggage`, `otel_get_baggage`, `otel_get_all_baggage` |
+| **Helpers** | Put data on spans, carry trace context + baggage across HTTP calls. | `otel_set_attributes`, `otel_add_event`, `otel_set_span_status`, `otel_inject_headers`, `otel_context_from_headers`, `otel_set_baggage`, `otel_get_baggage`, `otel_get_all_baggage` |
 
 Everything flows to your **OTLP collector** (SigNoz, Grafana, Jaeger, …) or **Azure
 Application Insights**, selected purely by the `OTELIO_TARGET` env var — your code never
@@ -268,8 +268,31 @@ otel_add_event("retry", {"attempt": 2, "backoff_ms": 250})
 **Attribute vs event:** an attribute describes the span as a whole ("this span had
 status 200"); an event marks a point in time during the span ("at t=12ms we retried").
 
-Both helpers guard on `span.is_recording()`, so they are no-ops when there is no real span
-— safe to call anywhere.
+### `otel_set_span_status(status, message=None, span=None)`
+
+Set the span's status explicitly. Pass a `StatusCode` — `UNSET` (the default), `OK`, or
+`ERROR`. The optional `message` is recorded as the status description and is only
+meaningful for `ERROR`. Defaults to the current span; pass `span=` only to target a span
+other than the active one.
+
+```python
+from otelio import otel_set_span_status, StatusCode
+
+# mark a business-logic failure that didn't raise an exception
+if resp.status_code >= 400:
+    otel_set_span_status(StatusCode.ERROR, "downstream returned an error")
+
+# explicitly mark success (rarely needed — UNSET is treated as non-error)
+otel_set_span_status(StatusCode.OK)
+```
+
+You usually don't need this for exceptions — `otel_span` already sets `ERROR` and records
+the exception when one propagates out of the `with` block (see [Automatic error
+recording](#automatic-error-recording)). Reach for `otel_set_span_status` when a failure is
+expressed as a return value rather than a raised exception.
+
+All three helpers guard on `span.is_recording()`, so they are no-ops when there is no real
+span — safe to call anywhere.
 
 ---
 
@@ -529,9 +552,9 @@ via headers, a single request appears as **one trace** spanning every service it
 - **Initialise exactly once.** Multiple `init_otelio` calls create duplicate providers.
 - **Don't pass huge / sensitive values as attributes.** Truncate large strings; never put
   secrets or tokens on a span — they're exported to the backend.
-- **Helpers are null-safe.** `otel_set_attributes` / `otel_add_event` no-op when there's
-  no recording span, so you can call them without guarding. Both default to the current
-  span; pass `span=` only to target a different one.
+- **Helpers are null-safe.** `otel_set_attributes` / `otel_add_event` /
+  `otel_set_span_status` no-op when there's no recording span, so you can call them without
+  guarding. All default to the current span; pass `span=` only to target a different one.
 - **Logs only correlate inside a span.** A log line emitted before any span opens shows
   `trace=-`; that's expected.
 - **Async is fine.** OpenTelemetry context follows `async`/`await` within a task. If you
