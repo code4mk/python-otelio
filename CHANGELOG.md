@@ -5,6 +5,36 @@ All notable changes to **otelio** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.2] - 2026-06-20
+
+### Added
+
+- `otel_set_span_status(status, message=None, span=None)` — set a span's `StatusCode`
+  (`UNSET` / `OK` / `ERROR`) with an optional description. `StatusCode` is now re-exported
+  from the `otelio` package.
+- Pluggable exporter registry: `init_otelio` accepts `trace_exporters` / `log_exporters`
+  to register custom exporters inline (lists of `{"name", "factory"}`), selectable via
+  `OTELIO_TARGET`. Built-in `otlp` (gRPC) and `azure` targets are now pre-registered
+  entries. Exports `Settings`, `TraceExporterEntry`, and `LogExporterEntry`.
+- `OTELIO_CONSOLE` — when truthy, attach a `SimpleSpanProcessor` + `ConsoleSpanExporter`
+  alongside the batch exporter so spans print to stdout for local debugging.
+- Custom resource attributes via `init_otelio`.
+- `docs/custom-exporter.md` documenting built-in targets, `OTELIO_CONSOLE`, and custom
+  exporters.
+
+### Changed
+
+- Renamed the `DEPLOYMENT_ENVIRONMENT` env var to `OTELIO_ENVIRONMENT` for consistency
+  with the `OTELIO_*` prefix. The `deployment.environment` resource attribute key is
+  unchanged.
+- Pinned OpenTelemetry to 1.40 for Azure exporter compatibility.
+
+### Fixed
+
+- Forward Loguru `extra` fields as OTel log attributes.
+
+[0.0.2]: https://github.com/code4mk/python-otelio/releases/tag/v0.0.2
+
 ## [0.0.1] - 2026-06-20
 
 ### Added
