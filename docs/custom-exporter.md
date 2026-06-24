@@ -98,9 +98,14 @@ You picked the name `otlp-http`. It's case-insensitive (stored lowercased), and 
 you'll set `OTELIO_TARGET` to. Each list can hold several entries if you want multiple
 targets selectable by env.
 
-> Register **both** a trace and a log factory under your name. `OTELIO_TARGET` selects the
-> exporters for both signals; if only one is registered under the chosen name, otelio
-> raises a clear `ValueError` listing the known targets.
+> Register a trace and/or a log factory under your name. `OTELIO_TARGET` selects the
+> exporters for both signals at once; if a chosen target has no factory for a given signal,
+> otelio raises a clear `ValueError` listing the known targets.
+>
+> To send the two signals to **different** backends, set `OTELIO_TRACE_TARGET` and/or
+> `OTELIO_LOG_TARGET` — each overrides `OTELIO_TARGET` for that one signal. In that case a
+> name only needs a factory for the signal it's selected for (e.g. a logs-only target needs
+> no trace factory).
 
 The object shape is typed — import `TraceExporterEntry` / `LogExporterEntry` from `otelio`
 if you want your editor to check it.

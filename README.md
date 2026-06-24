@@ -25,7 +25,9 @@ Insights** — switchable with a single environment variable, no code changes.
 - **Logs correlate to spans automatically** — keep using Loguru; every record is stamped
   with the active `trace_id` / `span_id` and exported.
 - **Backend-agnostic** — OTLP/gRPC or Azure App Insights via the `OTELIO_TARGET` env var.
-  Exporter SDKs are imported lazily, so you only install what you use.
+  Send traces and logs to the **same** backend, or split them across **different** backends
+  (and OTLP collectors) per signal. Exporter SDKs are imported lazily, so you only install
+  what you use.
 - **Cross-service tracing built in** — W3C `traceparent` + `baggage` propagation helpers so
   one request shows up as a single connected trace across service boundaries.
 - **Tiny surface** — eleven well-documented functions, nothing to configure in code.
@@ -63,8 +65,12 @@ All configuration is via environment variables.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `OTELIO_TARGET` | `otlp` | `otlp` (any OTLP/gRPC collector), `azure` (App Insights), or a [custom registered target](docs/custom-exporter.md). |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4317` | OTLP/gRPC collector endpoint (target `otlp`). |
+| `OTELIO_TARGET` | `otlp` | Global default for both signals: `otlp` (any OTLP/gRPC collector), `azure` (App Insights), or a [custom registered target](docs/custom-exporter.md). |
+| `OTELIO_TRACE_TARGET` | `OTELIO_TARGET` | Override the target for **traces** only. Lets you send traces and logs to different backends. |
+| `OTELIO_LOG_TARGET` | `OTELIO_TARGET` | Override the target for **logs** only. |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4317` | Global OTLP/gRPC collector endpoint (target `otlp`). |
+| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | `OTEL_EXPORTER_OTLP_ENDPOINT` | Override the OTLP endpoint for **traces** only. |
+| `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` | `OTEL_EXPORTER_OTLP_ENDPOINT` | Override the OTLP endpoint for **logs** only. |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | — | App Insights connection string (target `azure`). |
 | `OTEL_SERVICE_NAME` | the `service_name` arg | Overrides the service name. |
 | `OTELIO_ENVIRONMENT` | `local` | Set as the `deployment.environment` resource attribute. |
@@ -80,6 +86,15 @@ export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 export OTELIO_TARGET=azure
 export APPLICATIONINSIGHTS_CONNECTION_STRING="InstrumentationKey=...;IngestionEndpoint=..."
 export OTELIO_ENVIRONMENT=production
+
+# Split: traces to an OTLP collector, logs to Azure
+export OTELIO_TRACE_TARGET=otlp
+export OTELIO_LOG_TARGET=azure
+
+# Split: traces and logs to two different OTLP collectors
+export OTELIO_TARGET=otlp
+export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://tempo:4317
+export OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=http://loki-otlp:4317
 ```
 
 > **Required:** set `OTEL_PYTHON_LOG_AUTO_INSTRUMENTATION=false` when using `otelio`.

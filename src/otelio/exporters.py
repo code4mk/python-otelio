@@ -57,7 +57,7 @@ def _otlp_trace(s: Settings) -> SpanExporter:
         OTLPSpanExporter,
     )
 
-    return OTLPSpanExporter(endpoint=s.otlp_endpoint)
+    return OTLPSpanExporter(endpoint=s.otlp_trace_endpoint)
 
 
 def _azure_trace(s: Settings) -> SpanExporter:
@@ -73,7 +73,7 @@ def _otlp_log(s: Settings) -> LogRecordExporter:
         OTLPLogExporter,
     )
 
-    return OTLPLogExporter(endpoint=s.otlp_endpoint)
+    return OTLPLogExporter(endpoint=s.otlp_log_endpoint)
 
 
 def _azure_log(s: Settings) -> LogRecordExporter:
@@ -101,12 +101,13 @@ def _register_log_exporter(name: str, factory: LogExporterFactory) -> None:
 def build_trace_exporter(s: Settings) -> SpanExporter:
     """Return the trace (span) exporter for the configured target."""
     try:
-        factory = _TRACE_EXPORTERS[s.target]
+        factory = _TRACE_EXPORTERS[s.trace_target]
     except KeyError:
         raise ValueError(
-            f"No trace exporter registered for OTELIO_TARGET={s.target!r}. "
+            f"No trace exporter registered for trace target {s.trace_target!r} "
+            f"(OTELIO_TRACE_TARGET / OTELIO_TARGET). "
             f"Known targets: {sorted(_TRACE_EXPORTERS)}. "
-            f"Register one by passing trace_exporters=[{{'name': {s.target!r}, ...}}] "
+            f"Register one by passing trace_exporters=[{{'name': {s.trace_target!r}, ...}}] "
             "to init_otelio."
         ) from None
     return factory(s)
@@ -115,12 +116,13 @@ def build_trace_exporter(s: Settings) -> SpanExporter:
 def build_log_exporter(s: Settings) -> LogRecordExporter:
     """Return the log-record exporter for the configured target."""
     try:
-        factory = _LOG_EXPORTERS[s.target]
+        factory = _LOG_EXPORTERS[s.log_target]
     except KeyError:
         raise ValueError(
-            f"No log exporter registered for OTELIO_TARGET={s.target!r}. "
+            f"No log exporter registered for log target {s.log_target!r} "
+            f"(OTELIO_LOG_TARGET / OTELIO_TARGET). "
             f"Known targets: {sorted(_LOG_EXPORTERS)}. "
-            f"Register one by passing log_exporters=[{{'name': {s.target!r}, ...}}] "
+            f"Register one by passing log_exporters=[{{'name': {s.log_target!r}, ...}}] "
             "to init_otelio."
         ) from None
     return factory(s)

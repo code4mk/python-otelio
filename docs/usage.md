@@ -37,7 +37,8 @@ nothing in `otelio` is FastAPI-specific.
 
 Everything flows to your **OTLP collector** (SigNoz, Grafana, Jaeger, …) or **Azure
 Application Insights**, selected purely by the `OTELIO_TARGET` env var — your code never
-changes.
+changes. Traces and logs can go to the **same** backend, or you can split them across
+**different** backends per signal (see [Choosing a backend](#choosing-a-backend) below).
 
 ---
 
@@ -98,6 +99,49 @@ app = FastAPI(lifespan=lifespan)
 ```
 
 **Call it exactly once per process.** Calling it again creates duplicate providers.
+
+### Choosing a backend
+
+`init_otelio` reads no backend arguments — the destination is resolved from the
+environment, so the same code ships to every environment unchanged. The backend (the
+"target") and the OTLP endpoint each have a **global** setting plus optional **per-signal**
+overrides, so traces and logs can go to the same place or to different places.
+
+| | Global (both signals) | Traces only | Logs only |
+| --- | --- | --- | --- |
+| **Backend / target** | `OTELIO_TARGET` | `OTELIO_TRACE_TARGET` | `OTELIO_LOG_TARGET` |
+| **OTLP endpoint** | `OTEL_EXPORTER_OTLP_ENDPOINT` | `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` |
+
+Each per-signal variable falls back to its global when unset, so the common case stays a
+single line:
+
+```bash
+# Same backend for both signals (the default shape)
+export OTELIO_TARGET=otlp
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+```
+
+```bash
+# Split backends: traces to an OTLP collector, logs to Azure
+export OTELIO_TRACE_TARGET=otlp
+export OTELIO_LOG_TARGET=azure
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4317
+export APPLICATIONINSIGHTS_CONNECTION_STRING="InstrumentationKey=...;IngestionEndpoint=..."
+```
+
+```bash
+# Split collectors: traces and logs to two different OTLP endpoints
+export OTELIO_TARGET=otlp
+export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://tempo:4317
+export OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=http://loki-otlp:4317
+```
+
+> If a chosen target has no exporter registered for a given signal (e.g. you point
+> `OTELIO_TRACE_TARGET` at a logs-only custom target), `init_otelio` raises a clear
+> `ValueError` naming the offending value and listing the known targets. To register your
+> own backend, see the [custom exporter guide](custom-exporter.md).
+
+The full env-var reference lives in the [README](../README.md#configuration).
 
 ---
 
