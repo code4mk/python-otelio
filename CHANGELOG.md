@@ -5,6 +5,19 @@ All notable changes to **otelio** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.4] - 2026-06-25
+
+### Added
+
+- Built-in `otlp-http` target: OTLP/HTTP-protobuf export for traces and logs, alongside the
+  existing `otlp` (gRPC) and `azure` targets. Select with `OTELIO_TARGET=otlp-http` (or the
+  per-signal `OTELIO_TRACE_TARGET` / `OTELIO_LOG_TARGET`). The exporter resolves the standard
+  `OTEL_EXPORTER_OTLP_*` env vars itself, so it defaults to `http://localhost:4318` and
+  appends `/v1/traces` and `/v1/logs` per the OTLP/HTTP spec.
+- `opentelemetry-exporter-otlp-proto-http` is now a core dependency (no extra needed).
+
+[0.0.4]: https://github.com/code4mk/python-otelio/releases/tag/v0.0.4
+
 ## [0.0.3] - 2026-06-24
 
 ### Added

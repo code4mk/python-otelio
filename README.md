@@ -5,8 +5,8 @@
 A small, batteries-included **OpenTelemetry + [Loguru](https://github.com/Delgan/loguru)**
 toolkit for Python services. Call `init_otelio(...)` once at startup and you get **traces**
 and **logs** that are automatically correlated by `trace_id` / `span_id`, exported over
-**OTLP/gRPC** (SigNoz, Grafana, Jaeger, any OTLP collector) or to **Azure Application
-Insights** — switchable with a single environment variable, no code changes.
+**OTLP/gRPC** or **OTLP/HTTP** (SigNoz, Grafana, Jaeger, any OTLP collector) or to **Azure
+Application Insights** — switchable with a single environment variable, no code changes.
 
 > **Manual instrumentation, full control.** `otelio` is *not* an auto-instrumentation library.
 > Nothing is monkey-patched and no spans are created behind your back — you decide exactly what
@@ -24,7 +24,7 @@ Insights** — switchable with a single environment variable, no code changes.
   providers, the Loguru bridge, and a clean-shutdown flush hook.
 - **Logs correlate to spans automatically** — keep using Loguru; every record is stamped
   with the active `trace_id` / `span_id` and exported.
-- **Backend-agnostic** — OTLP/gRPC or Azure App Insights via the `OTELIO_TARGET` env var.
+- **Backend-agnostic** — OTLP/gRPC, OTLP/HTTP, or Azure App Insights via the `OTELIO_TARGET` env var.
   Send traces and logs to the **same** backend, or split them across **different** backends
   (and OTLP collectors) per signal. Exporter SDKs are imported lazily, so you only install
   what you use.
@@ -35,7 +35,7 @@ Insights** — switchable with a single environment variable, no code changes.
 ## Install
 
 ```bash
-pip install python-otelio                # core + OTLP/gRPC exporter
+pip install python-otelio                # core + OTLP/gRPC and OTLP/HTTP exporters
 pip install "python-otelio[azure]"       # also the Azure Application Insights exporter
 ```
 
@@ -65,10 +65,10 @@ All configuration is via environment variables.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `OTELIO_TARGET` | `otlp` | Global default for both signals: `otlp` (any OTLP/gRPC collector), `azure` (App Insights), or a [custom registered target](docs/custom-exporter.md). |
+| `OTELIO_TARGET` | `otlp` | Global default for both signals: `otlp` (any OTLP/gRPC collector), `otlp-http` (any OTLP/HTTP-protobuf collector), `azure` (App Insights), or a [custom registered target](docs/custom-exporter.md). |
 | `OTELIO_TRACE_TARGET` | `OTELIO_TARGET` | Override the target for **traces** only. Lets you send traces and logs to different backends. |
 | `OTELIO_LOG_TARGET` | `OTELIO_TARGET` | Override the target for **logs** only. |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4317` | Global OTLP/gRPC collector endpoint (target `otlp`). |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4317` (gRPC) / `http://localhost:4318` (HTTP) | Global OTLP collector endpoint. For target `otlp-http` the exporter appends `/v1/traces` and `/v1/logs` automatically; a per-signal endpoint (below) is used as-is. |
 | `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | `OTEL_EXPORTER_OTLP_ENDPOINT` | Override the OTLP endpoint for **traces** only. |
 | `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` | `OTEL_EXPORTER_OTLP_ENDPOINT` | Override the OTLP endpoint for **logs** only. |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | — | App Insights connection string (target `azure`). |
@@ -78,9 +78,13 @@ All configuration is via environment variables.
 | `OTEL_PYTHON_LOG_AUTO_INSTRUMENTATION` | `true` | **Required: set to `false`** when using `otelio` to avoid a duplicate logging handler. |
 
 ```bash
-# OTLP collector (SigNoz, Grafana, Jaeger, ...)
+# OTLP/gRPC collector (SigNoz, Grafana, Jaeger, ...)
 export OTELIO_TARGET=otlp
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+
+# OTLP/HTTP-protobuf collector (path /v1/traces, /v1/logs appended automatically)
+export OTELIO_TARGET=otlp-http
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
 
 # Azure Application Insights
 export OTELIO_TARGET=azure

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "python-otelio"
-version = "0.0.3"
+version = "0.0.4"
 description = "Otelio: OpenTelemetry + Loguru toolkit for Python services"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -40,6 +40,7 @@ dependencies = [
     "opentelemetry-api==1.40.*",
     "opentelemetry-sdk==1.40.*",
     "opentelemetry-exporter-otlp-proto-grpc==1.40.*",
+    "opentelemetry-exporter-otlp-proto-http==1.40.*",
     # Provides the non-deprecated LoggingHandler (the SDK's is deprecated as of
     # 1.40). 0.61b0 is the instrumentation release that pairs with OTel 1.40.*.
     "opentelemetry-instrumentation-logging==0.61b0",

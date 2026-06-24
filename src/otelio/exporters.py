@@ -2,9 +2,10 @@
 Trace and log exporter factories, with a small registry so a project can plug in
 its own exporters without modifying otelio.
 
-Two targets ship built in: ``otlp`` (SigNoz / any OTLP-gRPC collector) and
-``azure`` (App Insights). Their backend SDKs are imported lazily so a project
-only needs the deps for the target it actually uses.
+Three targets ship built in: ``otlp`` (OTLP/gRPC, SigNoz / any gRPC collector),
+``otlp-http`` (OTLP/HTTP-protobuf, any HTTP collector) and ``azure`` (App
+Insights). Their backend SDKs are imported lazily so a project only needs the
+deps for the target it actually uses.
 
 To add your own, pass a factory by name to :func:`otelio.init_otelio` via its
 ``trace_exporters`` / ``log_exporters`` params, then select it from the
@@ -60,6 +61,18 @@ def _otlp_trace(s: Settings) -> SpanExporter:
     return OTLPSpanExporter(endpoint=s.otlp_trace_endpoint)
 
 
+def _otlp_http_trace(s: Settings) -> SpanExporter:
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import (  # noqa: PLC0415
+        OTLPSpanExporter,
+    )
+
+    # No explicit endpoint: the HTTP exporter resolves the standard OTEL_EXPORTER_OTLP_*
+    # env vars itself, which gives the correct OTLP/HTTP default (``:4318``) and appends
+    # the ``/v1/traces`` path. (The gRPC factory above passes ``endpoint`` because gRPC
+    # uses the bare base URL on ``:4317`` with no path.)
+    return OTLPSpanExporter()
+
+
 def _azure_trace(s: Settings) -> SpanExporter:
     from azure.monitor.opentelemetry.exporter import (  # noqa: PLC0415 (optional dep)
         AzureMonitorTraceExporter,
@@ -76,6 +89,16 @@ def _otlp_log(s: Settings) -> LogRecordExporter:
     return OTLPLogExporter(endpoint=s.otlp_log_endpoint)
 
 
+def _otlp_http_log(s: Settings) -> LogRecordExporter:
+    from opentelemetry.exporter.otlp.proto.http._log_exporter import (  # noqa: PLC0415
+        OTLPLogExporter,
+    )
+
+    # See _otlp_http_trace: let the exporter resolve OTEL_EXPORTER_OTLP_* itself so the
+    # ``:4318`` default and ``/v1/logs`` path are handled per the OTLP/HTTP spec.
+    return OTLPLogExporter()
+
+
 def _azure_log(s: Settings) -> LogRecordExporter:
     from azure.monitor.opentelemetry.exporter import (  # noqa: PLC0415 (optional dep)
         AzureMonitorLogExporter,
@@ -84,8 +107,16 @@ def _azure_log(s: Settings) -> LogRecordExporter:
     return AzureMonitorLogExporter(connection_string=s.azure_conn_str)
 
 
-_TRACE_EXPORTERS: dict[str, TraceExporterFactory] = {"otlp": _otlp_trace, "azure": _azure_trace}
-_LOG_EXPORTERS: dict[str, LogExporterFactory] = {"otlp": _otlp_log, "azure": _azure_log}
+_TRACE_EXPORTERS: dict[str, TraceExporterFactory] = {
+    "otlp": _otlp_trace,
+    "otlp-http": _otlp_http_trace,
+    "azure": _azure_trace,
+}
+_LOG_EXPORTERS: dict[str, LogExporterFactory] = {
+    "otlp": _otlp_log,
+    "otlp-http": _otlp_http_log,
+    "azure": _azure_log,
+}
 
 
 def _register_trace_exporter(name: str, factory: TraceExporterFactory) -> None:
