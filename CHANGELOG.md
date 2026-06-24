@@ -5,6 +5,29 @@ All notable changes to **otelio** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.3] - 2026-06-24
+
+### Added
+
+- Per-signal exporter selection. `OTELIO_TARGET` stays the global default; new
+  `OTELIO_TRACE_TARGET` / `OTELIO_LOG_TARGET` override the target for traces / logs
+  individually, so the two signals can go to different backends. Each falls back to
+  `OTELIO_TARGET` when unset.
+- Per-signal OTLP endpoints (OTel standard names). `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`
+  / `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` override `OTEL_EXPORTER_OTLP_ENDPOINT` for traces /
+  logs individually, allowing two separate OTLP collectors. Each falls back to the global
+  endpoint when unset.
+
+### Changed
+
+- `build_trace_exporter` / `build_log_exporter` now resolve from the per-signal target,
+  and OTLP exporters use the per-signal endpoint. Exporter `ValueError` messages name the
+  offending per-signal target and the env vars that set it.
+- Documented the global-vs-per-signal model in the README configuration table and the
+  usage guide.
+
+[0.0.3]: https://github.com/code4mk/python-otelio/releases/tag/v0.0.3
+
 ## [0.0.2] - 2026-06-20
 
 ### Added
